@@ -1,3 +1,7 @@
+## 소개
+텔레그램 봇을 이용하여 ChatGPT를 호스팅 할 수 있는 환경을 만듭니다. 
+게다가 Google Translate를 사용한 자동 번역 기능으로 특히 한국어와같이 ChatGPT의 성능이 다소 아쉬운 언어에서도 영어로 ChatGPT를 이용하는것처럼 자동으로 번역하여 결과를 알려줍니다.
+
 # BREAKING: ChatGPT API was just released, going to update this repo to use it! We're back baby! 
 
 # ChatGPT Telegram Bot
