@@ -3,6 +3,10 @@ import json
 import time
 import os
 
+dt = False
+import googletrans
+translator = googletrans.Translator()
+
 import telegram
 from playwright.sync_api import sync_playwright
 
@@ -89,7 +93,7 @@ class AtrributeError:
 
 def get_last_message():
     """Get the latest message"""
-    page_elements = PAGE.query_selector_all("div[class*='request-']")
+    page_elements = PAGE.query_selector_all("div[class*='markdown']")
     last_element = page_elements[-1]
     prose = last_element
     try:
@@ -141,6 +145,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /help is issued."""
     await update.message.reply_text("Help!")
+
+@auth(USER_ID)
+async def entrans(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Auto translate the message and send it back"""
+    reply = str(translator.translate(update.message.text[2:], dest='en').text) # translate 한국어 to english
+    await update.message.reply_text(f"'{reply}'(으)로 번역했어요!")
+    # Send the message to OpenAI
+    send_message(reply)
+    await check_loading(update)
+    response = str(translator.translate(get_last_message(), dest='ko').text)
+    # print(response)
+    if "\[prompt:" in response:
+        await respond_with_image(update, response)
+    else:
+        await update.message.reply_text(
+            text=escape_markdown(response, version=2), 
+            parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
 
 @auth(USER_ID)
 async def reload(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -235,17 +256,46 @@ I want you to only reply with the output inside and nothing else. Do no write ex
     else:
         await update.message.reply_text(response, parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
 
+async def autotrans(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    global dt
+    """Echo the user message."""
+    if update.message.text[7:] == 'true':
+        await update.message.reply_text("자동번역을 사용합니다")
+        dt = True
+    elif update.message.text[7:] == 'false':
+        await update.message.reply_text("자동번역을 사용하지 않습니다")
+        dt = False
+    else:
+        await update.message.reply_text("parameter는 true 또는 false여야 합니다")
+        return
+
 @auth(USER_ID)
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Echo the user message."""
-    # Send the message to OpenAI
-    send_message(update.message.text)
-    await check_loading(update)
-    response = get_last_message()
-    if "\[prompt:" in response:
-        await respond_with_image(update, response)
+    if dt == True and location == 'en': # if auto translate is on and the message is in english
+        """Auto translate the message and send it back"""
+        reply = str(translator.translate(update.message.text, dest='en').text)
+        await update.message.reply_text(f"'{reply}'(으)로 번역했어요!")
+        # Send the message to OpenAI
+        send_message(reply)
+        await check_loading(update)
+        response = str(translator.translate(get_last_message(), dest='ko').text)
+        # print(response)
+        if "\[prompt:" in response:
+            await respond_with_image(update, response)
+        else:
+            await update.message.reply_text(
+                text=escape_markdown(response, version=2), 
+                parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
     else:
-        await update.message.reply_text(response, parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
+        """Echo the user message."""
+        # Send the message to OpenAI
+        send_message(update.message.text)
+        await check_loading(update)
+        response = get_last_message()
+        if "\[prompt:" in response:
+            await respond_with_image(update, response)
+        else:
+            await update.message.reply_text(response, parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
 
 async def check_loading(update):
     #button has an svg of submit, if it's not there, it's likely that the three dots are showing an animation
@@ -262,6 +312,22 @@ async def check_loading(update):
         loading = submit_button.query_selector_all(".text-2xl")
         await application.bot.send_chat_action(update.effective_chat.id, "typing")
 
+async def goto(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    global location
+    global dt
+    if update.message.text[6:] == 'en':
+        PAGE.locator("a", has_text="Gotoh_Hitori_EN").click()
+        location = 'en'
+        if dt == False:
+            dt = True
+            await update.message.reply_text("자동번역을 활성화했어요.")
+        await update.message.reply_text("Gotoh_Hitori_EN 영역으로 이동했어요.")
+    elif update.message.text[6:] == 'ko':
+        PAGE.locator("a", has_text="Gotoh_Hitori_KO").click()
+        location = 'ko'
+        await update.message.reply_text("Gotoh_Hitori_KO 영역으로 이동했어요.")
+    else:
+        await update.message.reply_text("parameter가 잘못되었어요. /goto en 또는 /goto ko로 입력해주세요.")
 
 def start_browser():
     PAGE.goto("https://chat.openai.com/")
@@ -291,9 +357,12 @@ def start_browser():
             pass
 
     # on different commands - answer in Telegram
+    application.add_handler(CommandHandler("trans", autotrans))
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("reload", reload))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("t", entrans))
+    application.add_handler(CommandHandler("goto", goto))
     application.add_handler(CommandHandler("draw", draw))
     application.add_handler(CommandHandler("browse", browse))
 
