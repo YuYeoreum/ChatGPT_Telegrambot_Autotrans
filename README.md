@@ -2,6 +2,13 @@
 텔레그램 봇을 이용하여 ChatGPT를 호스팅 할 수 있는 환경을 만듭니다. 
 게다가 Google Translate를 사용한 자동 번역 기능으로 특히 한국어와같이 ChatGPT의 성능이 다소 아쉬운 언어에서도 영어로 ChatGPT를 이용하는것처럼 자동으로 번역하여 결과를 알려줍니다.
 
+## 패키지 주의사항
+이 리포지토리는 'googletrans~=4.0.0rc1'을 사용하지만 저 패키지는 httpx가 telegram bot 패키지랑 연동이 되지 않습니다. 그래서 telegram bot 패키지의 최신 httpx를 사용하고, googletrans 패키지의 client.py의 62 line의 httpcore. 로 시작하는 부분을 httpcore.AsyncHTTPProxy로 바꿔줘야 정상적으로 작동합니다!
+
+## 추가된 명령어
+ - /goto ko, /goto en -> 영어 채팅과 한글 채팅을 따로 구분하여 오갈 수 있습니다. 영어 채팅에 진입하면 자동으로 번역이 활성화됩니다
+ - /trans true or false -> 자동 번역을 토글할 수 있습니다. 
+
 # BREAKING: ChatGPT API was just released, going to update this repo to use it! We're back baby! 
 
 # ChatGPT Telegram Bot
